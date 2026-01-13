@@ -21,6 +21,11 @@
 - Redis (Docker, история диалогов)
 - OpenRouter API (LLM для planner и executors)
 
+![Скриншот](screenshot1.png)
+![Скриншот](screenshot2.png)
+![Скриншот](screenshot3.png)
+![Скриншот](screenshot4.png)
+
 ## Подробное описание
 
 ### 1) Общая архитектура
