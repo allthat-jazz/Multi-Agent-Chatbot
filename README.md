@@ -21,10 +21,10 @@
 - Redis (Docker, история диалогов)
 - OpenRouter API (LLM для planner и executors)
 
-![Скриншот](screenshot1.png)
-![Скриншот](screenshot2.png)
-![Скриншот](screenshot3.png)
-![Скриншот](screenshot4.png)
+![Скриншот](assets/screenshot1.png)
+![Скриншот](assets/screenshot2.png)
+![Скриншот](assets/screenshot3.png)
+![Скриншот](assets/screenshot4.png)
 
 ## Подробное описание
 
@@ -45,7 +45,7 @@
 Логика orchestrations реализована как **LangGraph StateGraph** с условным переходом (conditional edge):
 - `planner → (kb | db | web)`
 
-![Скриншот LangGraph](agent_graph.png)
+![Скриншот LangGraph](assets/agent_graph.png)
 
 ### 2) Планировщик (Planner)
 
