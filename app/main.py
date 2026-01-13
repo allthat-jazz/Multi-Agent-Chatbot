@@ -185,14 +185,15 @@ async def ask(session_id: str, payload: AskRequest):
     history = get_history(settings.redis_url, session_id)
     prior = _trim_messages(history.messages, settings.chat_max_turns)
     
-    rag = app.state.rag
-    capture = {"kb_hits": [], "rag": rag}
     graph = app.state.graph
     state_in = {"messages": prior + [HumanMessage(content=payload.question)]}
     result_state = await graph.ainvoke(state_in)
 
-    msgs = result_state.get("messages") or []
-    answer = msgs[-1].content if msgs else ""
+    msgs = getattr(result_state, "messages", None)
+    if msgs is None and isinstance(result_state, dict):
+        msgs = result_state.get("messages") or []
+    msgs = msgs or []
+    answer = (msgs[-1].content if msgs else "").strip()
 
     history.add_user_message(payload.question)
     history.add_ai_message(answer)
@@ -200,13 +201,7 @@ async def ask(session_id: str, payload: AskRequest):
     cur_title = get_title(redis_client, session_id)
     if cur_title == "New chat":
         set_title(redis_client, session_id, _auto_title(payload.question))
-        
-    kb_hits = capture.get("kb_hits") or []
-    tools_used = []
-    if kb_hits:
-        tools_used.append("kb_search")
 
     return AskResponse(session_id=session_id,
         answer=(answer or "").strip(),
-        tools_used=tools_used,
         error=None)

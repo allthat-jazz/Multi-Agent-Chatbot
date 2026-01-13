@@ -8,11 +8,9 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
 from .loaders import load_docs_from_dir
-from .store import (
-    save_chunks, load_chunks,
+from .store import (save_chunks, load_chunks,
     save_bm25_tokens, load_bm25_tokens,
-    save_faiss, load_faiss,
-)
+    save_faiss, load_faiss)
 
 @dataclass
 class Chunk:

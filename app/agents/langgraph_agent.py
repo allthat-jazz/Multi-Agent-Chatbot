@@ -26,6 +26,7 @@ KB_SYSTEM = """Ты KB-агент (RAG). Используй ТОЛЬКО инс�
 
 Правила:
 - Сначала вызови kb_search по вопросу.
+- В ответе делай цитирование из найденных данных.
 - Если hits пустые — прямо скажи "В KB нет данных" (без источников).
 - НЕ пиши в ответе номера чанков, chunk_id, пути к файлам.
 - В блоке "Источники" (если пишешь) указывай только уникальные ИМЕНА ФАЙЛОВ (например: runbook.md), без повторов, без путей.
@@ -49,7 +50,6 @@ WEB_SYSTEM = """Ты WEB-агент. Используй ТОЛЬКО web_search.
 class AgentState(BaseModel):
     messages: list = Field(default_factory=list)
     route: str = ""
-    route2: str = ""
     kb_sources: list = Field(default_factory=list)
 
 # HELPERS 
@@ -115,10 +115,6 @@ def _extract_kb_sources_from_messages(messages):
         break
     return srcs
 
-def _kb_answer_says_no_data(text):
-    low = (text or "").lower()
-    return ("в kb нет данных" in low) or ("kb нет данных" in low) or ("нет данных в kb" in low)
-
 # GRAPH
 
 def build_langgraph(planner_llm, kb_agent_llm, db_agent_llm, web_agent_llm, rag, postgres_url):
@@ -149,26 +145,22 @@ def build_langgraph(planner_llm, kb_agent_llm, db_agent_llm, web_agent_llm, rag,
 
     async def kb_node(state):
         msgs = list(_sget(state, "messages", []) or [])
-        msgs2 = msgs + [SystemMessage(content=KB_SYSTEM)]
+        msgs2 = [SystemMessage(content=KB_SYSTEM)] + msgs
         res = await kb_executor.ainvoke({"messages": msgs2})
         out_msgs = res.get("messages") or msgs2
         srcs = _extract_kb_sources_from_messages(out_msgs)
-        last_text = ""
-        if out_msgs:
-            last_text = getattr(out_msgs[-1], "content", "") or ""
-        route2 = "web" if (not srcs and _kb_answer_says_no_data(last_text)) else ""
-        return {"messages": out_msgs, "kb_sources": srcs, "route2": route2}
+        return {"messages": out_msgs, "kb_sources": srcs}
 
     async def db_node(state):
         msgs = list(_sget(state, "messages", []) or [])
-        msgs2 = msgs + [SystemMessage(content=DB_SYSTEM)]
+        msgs2 = [SystemMessage(content=DB_SYSTEM)] + msgs
         res = await db_executor.ainvoke({"messages": msgs2})
         out_msgs = res.get("messages") or msgs2
         return {"messages": out_msgs}
 
     async def web_node(state):
         msgs = list(_sget(state, "messages", []) or [])
-        msgs2 = msgs + [SystemMessage(content=WEB_SYSTEM)]
+        msgs2 = [SystemMessage(content=WEB_SYSTEM)] + msgs
         res = await web_executor.ainvoke({"messages": msgs2})
         out_msgs = res.get("messages") or msgs2
         return {"messages": out_msgs}
@@ -186,10 +178,7 @@ def build_langgraph(planner_llm, kb_agent_llm, db_agent_llm, web_agent_llm, rag,
 
     g.add_conditional_edges("planner", _route, {"kb": "kb", "db": "db", "web": "web"})
 
-    def _route2(state):
-        return (_sget(state, "route2", "") or "").strip()
-
-    g.add_conditional_edges("kb", _route2, {"web": "web", "": END})
+    g.add_edge("kb", END)
     g.add_edge("db", END)
     g.add_edge("web", END)
 
